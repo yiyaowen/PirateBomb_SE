@@ -1,19 +1,20 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 
 public class UIManager : MonoBehaviour
 {
     public static UIManager instance;
 
-    public GameObject healthBar;
+    [Header("Buttons")]
+    public GameObject pauseButton;
 
-    [Header("UI Elements")]
+    [Header("Menus")]
     public GameObject pauseMenu;
-    public Slider bossHealthBar;
-    public Image bossHealthBarFill;
-    public GameObject gameOverPanel;
+    public GameObject gameOverMenu;
+
+    [Header("Widgets")]
+    public PlayerHealthBar playerHealthBar;
+    public BossHealthBar bossHealthBar;
 
     private void Awake()
     {
@@ -27,82 +28,38 @@ public class UIManager : MonoBehaviour
         }
     }
 
-    public void EnableBossHealthBar()
+    public void SetPlayerHealthBarActive(bool value)
     {
-        bossHealthBar.transform.parent.gameObject.SetActive(true);
+        playerHealthBar.gameObject.SetActive(value);
     }
 
-    public void UpdateHealth(float currentHealth) // nb!
+    public void SetPlayerMaxHealth(float health)
     {
-        switch (currentHealth)
-        {
-            case 0:
-                healthBar.transform.GetChild(0).gameObject.SetActive(false);
-                healthBar.transform.GetChild(1).gameObject.SetActive(false);
-                healthBar.transform.GetChild(2).gameObject.SetActive(false);
-                break;
-            case 1:
-                healthBar.transform.GetChild(0).gameObject.SetActive(false);
-                healthBar.transform.GetChild(1).gameObject.SetActive(false);
-                healthBar.transform.GetChild(2).gameObject.SetActive(true);
-                break;
-            case 2:
-                healthBar.transform.GetChild(0).gameObject.SetActive(false);
-                healthBar.transform.GetChild(1).gameObject.SetActive(true);
-                healthBar.transform.GetChild(2).gameObject.SetActive(true);
-                break;
-            case 3:
-                healthBar.transform.GetChild(0).gameObject.SetActive(true);
-                healthBar.transform.GetChild(1).gameObject.SetActive(true);
-                healthBar.transform.GetChild(2).gameObject.SetActive(true);
-                break;
-            default:
-                break;
-        }
+        playerHealthBar.SetMaxHealth(health);
     }
 
-    public void PauseGame()
+    public void UpdatePlayerHealth(float health)
     {
-        pauseMenu.SetActive(true);
-
-        Time.timeScale = 0;
+        playerHealthBar.UpdateHealth(health);
     }
 
-    public void ResumeGame()
+    public void SetBossHealthBarActive(bool value)
     {
-        pauseMenu.SetActive(false);
-
-        Time.timeScale = 1;
+        bossHealthBar.gameObject.SetActive(value);
     }
 
-    public void SetBossHealth(float health)
+    public void SetBossMaxHealth(float health)
     {
-        bossHealthBar.maxValue = health;
+        bossHealthBar.SetMaxHealth(health);
     }
 
     public void UpdateBossHealth(float health)
     {
-        bossHealthBar.value = health;
-        float healthPercent = health / bossHealthBar.maxValue;
-        // 00950D r 0 g 149 b 13 // green
-        // FFA800 r 255 g 168 b 0 // yellow
-        // FF3E00 r 255 g 62 b 0 // red
-        if (healthPercent > 0.6)
-        {
-            bossHealthBarFill.color = new Color(0.0f, 0.58f, 0.05f);
-        }
-        else if (healthPercent > 0.3)
-        {
-            bossHealthBarFill.color = new Color(1.0f, 0.66f, 0.0f);
-        }
-        else
-        {
-            bossHealthBarFill.color = new Color(1.0f, 0.24f, 0.0f);
-        }
+        bossHealthBar.UpdateHealth(health);
     }
 
-    public void GameOverUI(bool gameOver)
+    public void ShowGameOverMenu()
     {
-        gameOverPanel.SetActive(gameOver);
+        gameOverMenu.SetActive(true);
     }
 }

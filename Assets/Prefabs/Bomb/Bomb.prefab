@@ -50,6 +50,7 @@ SpriteRenderer:
   m_LightProbeUsage: 1
   m_ReflectionProbeUsage: 1
   m_RayTracingMode: 0
+  m_RayTraceProcedural: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -72,7 +73,7 @@ SpriteRenderer:
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
   m_SortingLayerID: -696973147
-  m_SortingLayer: 2
+  m_SortingLayer: 4
   m_SortingOrder: 10
   m_Sprite: {fileID: 21300000, guid: 6ac817e9ac24d437b9581b93cebb4c3b, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -123,7 +124,7 @@ Rigidbody2D:
   m_Material: {fileID: 6200000, guid: 166ed90d8fc454a55b36f7183163f22c, type: 2}
   m_Interpolate: 0
   m_SleepingMode: 1
-  m_CollisionDetection: 0
+  m_CollisionDetection: 1
   m_Constraints: 0
 --- !u!58 &8390371343760729008
 CircleCollider2D:
@@ -153,11 +154,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8166d3b5ef4024f87863c10bc679b286, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  startTime: 0
-  waitTime: 2
+  waitTime: 5.2
   bombForce: 12
-  damageAmount: 1
-  radius: 1.38
-  targetLayer:
+  damageAmount: 10
+  explosionRaidus: 1.38
+  explosionTargetLayer:
     serializedVersion: 2
-    m_Bits: 11776
+    m_Bits: 12032

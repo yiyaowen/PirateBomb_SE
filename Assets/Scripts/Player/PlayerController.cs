@@ -1,114 +1,124 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
 public class PlayerController : MonoBehaviour, IDamageable
 {
-    private Rigidbody2D rb;
-    private Animator anim;
-    private FixedJoystick joystick;
+    public enum State
+    {
+        Static = 0,
+        Roaming = 1,
+        Battle = 2
+    }
 
-    public float speed;
+    [Header("State Settings")]
+    public State state;
+
+    [Header("Health Settings")]
+    public float maxHealth;
+    public float health { get; set; }
+    public bool isDead { get; set; }
+
+    [Header("Move Settings")]
+    public float moveSpeed;
     public float jumpForce;
+    public float gravityScaleOnGround;
+    public float gravityScaleInAir;
 
-    [Header("Player State")]
-    public float health;
-    public bool isDead;
+    [Header("Attack Settings")]
+    public GameObject bombPrefab;
+    public float bombOffsetX;
+    public float attackRate;
+
+    private float nextAttack = 0;
 
     [Header("Ground Check")]
-    public Transform groundCheck;
+    public Transform checkPoint;
     public Vector2 checkSize;
     public LayerMask groundLayer;
 
-    [Header("States Check")]
-    public bool isGround;
-    public bool canJump;
+    public bool isGround { get; set; }
+    public bool canJump { get; set; }
 
-    [Header("Jump FX")]
+    [Header("Special Effects")]
     public GameObject jumpFX;
     public GameObject landFX;
 
-    [Header("Attack Settings")]
-    public bool canAttack;
-    public GameObject bombPrefab;
-    public float nextAttack = 0;
-    public float attackRate;
+    private Rigidbody2D rb;
+    private Animator anim;
+    //private FixedJoystick joystick;
 
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
         anim = GetComponent<Animator>();
-        joystick = FindObjectOfType<FixedJoystick>();
+        //joystick = FindObjectOfType<FixedJoystick>();
 
         GameManager.instance.IsPlayer(this);
-
-        health = GameManager.instance.LoadHealth();
-        UIManager.instance.UpdateHealth(health);
+        if (state >= State.Battle)
+        {
+            UIManager.instance.SetPlayerHealthBarActive(true);
+            UpdateHealth();
+        }
     }
 
     void Update()
     {
+        if (state <= State.Static) return;
+
         anim.SetBool("dead", isDead);
         if (isDead) return;
+
         PhysicsCheck();
-        CheckInput();
+        GetUserInput();
     }
 
-    void CheckInput()
+    private void FixedUpdate()
+    {
+        if (state <= State.Static) return;
+
+        if (isDead)
+        {
+            rb.velocity = Vector2.zero;
+            return;
+        }
+        Move();
+        Jump();
+    }
+
+    private void OnDrawGizmos()
+    {
+        Gizmos.DrawWireCube(checkPoint.position, checkSize);
+    }
+
+    void GetUserInput()
 	{
         if (Input.GetButtonDown("Jump") && isGround)
 		{
             canJump = true;
 		}
 
-        if (canAttack && Input.GetKeyDown(KeyCode.J))
+        if (Input.GetKeyDown(KeyCode.J) && state >= State.Battle)
         {
             Attack();
         }
 	}
 
-	private void FixedUpdate()
-	{
-        if (isDead)
-        {
-            rb.velocity = Vector2.zero;
-            return;
-        }
-        Movement();
-        Jump();
-	}
-
-	void Movement()
+	void Move()
     {
         // 键盘操作
-        float horizontalInput = Input.GetAxisRaw("Horizontal"); // -1 ~ 1 including float number
+        float horizontalInput = Input.GetAxisRaw("Horizontal");
 
         // 操纵杆
         //float horizontalInput = joystick.Horizontal;
 
-        rb.velocity = new Vector2(horizontalInput * speed, rb.velocity.y);
-
-        //if (horizontalInput != 0)
-		//{
-            //transform.localScale = new Vector3(horizontalInput, 1, 1);
-		//}
-
-        if (horizontalInput > 0)
+        if (horizontalInput != 0)
         {
-            transform.eulerAngles = new Vector3(0, 0, 0);
+            float flipAngle = horizontalInput < 0 ? 180 : 0;
+            float offsetDirection = horizontalInput < 0 ? 1 : -1;
+            transform.eulerAngles = new Vector3(0, flipAngle, 0);
+            bombOffsetX = offsetDirection * Mathf.Abs(bombOffsetX);
         }
-        if (horizontalInput < 0)
-        {
-            transform.eulerAngles = new Vector3(0, 180, 0);
-        }
-    }
 
-    public void ButtonJump()
-    {
-        if (isGround)
-        {
-            JumpDirectly();
-        }
+        rb.velocity = new Vector2(horizontalInput * moveSpeed, rb.velocity.y);
     }
 
     public void Jump()
@@ -122,8 +132,7 @@ public class PlayerController : MonoBehaviour, IDamageable
 
     public void JumpDirectly()
     {
-        jumpFX.SetActive(true);
-        jumpFX.transform.position = transform.position + new Vector3(0, -0.45f, 0);
+        ShowJumpFX();
         rb.velocity = new Vector2(rb.velocity.x, jumpForce);
     }
 
@@ -131,7 +140,9 @@ public class PlayerController : MonoBehaviour, IDamageable
     {
         if (Time.time > nextAttack)
         {
-            Instantiate(bombPrefab, transform.position, bombPrefab.transform.rotation);
+            var bombPos = transform.position;
+            bombPos.x += bombOffsetX;
+            Instantiate(bombPrefab, bombPos, bombPrefab.transform.rotation);
 
             nextAttack = Time.time + attackRate;
         }
@@ -139,26 +150,27 @@ public class PlayerController : MonoBehaviour, IDamageable
 
     void PhysicsCheck()
     {
-        isGround = Physics2D.OverlapBox(groundCheck.position, checkSize, 0.0f, groundLayer);
-        if (isGround)
-        {
-            rb.gravityScale = 1;
-        }
-        else
-        {
-            rb.gravityScale = 4;
-        }
+        isGround = Physics2D.OverlapBox(checkPoint.position, checkSize, 0.0f, groundLayer);
+        rb.gravityScale = isGround ? gravityScaleOnGround : gravityScaleInAir;
     }
 
-    public void LandFX()
+    public void ShowJumpFX()
+    {
+        jumpFX.SetActive(true);
+        jumpFX.transform.position = transform.position + new Vector3(0, -0.45f, 0);
+    }
+
+    public void ShowLandFX()
     {
         landFX.SetActive(true);
         landFX.transform.position = transform.position + new Vector3(0, -0.75f, 0);
     }
 
-    private void OnDrawGizmos()
+    public void UpdateHealth()
     {
-        Gizmos.DrawWireCube(groundCheck.position, checkSize);
+        health = GameManager.instance.LoadPlayerHealth();
+        UIManager.instance.SetPlayerMaxHealth(maxHealth);
+        UIManager.instance.UpdatePlayerHealth(health);
     }
 
     public void GetHit(float damage)
@@ -166,14 +178,31 @@ public class PlayerController : MonoBehaviour, IDamageable
         if (!anim.GetCurrentAnimatorStateInfo(1).IsName("player_hit"))
         {
             health -= damage;
+
             if (health < 1)
             {
                 health = 0;
                 isDead = true;
+                GameManager.instance.PlayerDead();
             }
-            anim.SetTrigger("hit");
 
-            UIManager.instance.UpdateHealth(health);
+            anim.SetTrigger("hit");
+            UIManager.instance.UpdatePlayerHealth(health);
         }
+    }
+
+    public void ChangeToStaticState()
+    {
+        state = State.Static;
+    }
+
+    public void ChangeToRoamingState()
+    {
+        state = State.Roaming;
+    }
+
+    public void ChangeToBattleState()
+    {
+        state = State.Battle;
     }
 }

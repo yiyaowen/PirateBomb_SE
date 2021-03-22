@@ -7,12 +7,12 @@ public class GameManager : MonoBehaviour
 {
     public static GameManager instance;
 
-    private PlayerController player;
-    private Door doorExit;
+    public bool gameOver { get; set; }
 
-    public bool gameOver;
+    public PlayerController player { get; set; }
+    public List<GameObject> objectsToFinish = new List<GameObject>();
 
-    public List<Enemy> enemies = new List<Enemy>();
+    public NewGameMenu newGameMenu { get; set; }
 
     private void Awake()
     {
@@ -28,27 +28,7 @@ public class GameManager : MonoBehaviour
 
     private void Update()
     {
-        if (player != null)
-        {
-                gameOver = player.isDead;
-        }
-        UIManager.instance.GameOverUI(gameOver);
-    }
 
-    public void IsEnemy(Enemy enemy)
-    {
-        enemies.Add(enemy);
-    }
-
-    public void EnemyDead(Enemy enemy)
-    {
-        enemies.Remove(enemy);
-
-        if (enemies.Count == 0)
-        {
-            doorExit.OpenDoor();
-            SaveData();
-        }
     }
 
     public void IsPlayer(PlayerController controller)
@@ -56,68 +36,113 @@ public class GameManager : MonoBehaviour
         player = controller;
     }
 
-    public void IsExitDoor(Door door)
+    public float LoadPlayerHealth()
     {
-        doorExit = door;
-    }
-
-    public void RestartScene()
-    {
-        Time.timeScale = 1;
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
-    }
-
-    public void NewGame()
-    {
-        PlayerPrefs.DeleteAll();
-        SceneManager.LoadScene(1);
-    }
-
-    public void ContinueGame()
-    {
-        if (PlayerPrefs.HasKey("sceneIndex"))
-        {
-            SceneManager.LoadScene(PlayerPrefs.GetInt("sceneIndex"));
-        }
+        if (PlayerPrefs.HasKey("player_health"))
+            return PlayerPrefs.GetFloat("player_health");
         else
+            return player.maxHealth;
+    }
+
+    public void PlayerDead()
+    {
+        gameOver = true;
+        player.gameObject.layer = LayerMask.NameToLayer("Default");
+
+        StartCoroutine("ShowGameOverMenu");
+    }
+
+    IEnumerator ShowGameOverMenu()
+    {
+        yield return new WaitForSeconds(2);
+        UIManager.instance.pauseButton.SetActive(false);
+        UIManager.instance.gameOverMenu.SetActive(true);
+    }
+
+    public void IsObjectToFinish(GameObject target)
+    {
+        if (!objectsToFinish.Contains(target))
+            objectsToFinish.Add(target);
+    }
+
+    public void ObjectFinish(GameObject target)
+    {
+        if (objectsToFinish.Contains(target))
+            objectsToFinish.Remove(target);
+
+        if (objectsToFinish.Count == 0)
         {
-            NewGame();
+            SaveGameData();
+            foreach (var door in FindObjectsOfType<Door>())
+            {
+                if (door.CompareTag("Exit Door"))
+                {
+                    door.Open();
+                }
+            }
         }
     }
 
     public void GoToMainMenu()
     {
-        Time.timeScale = 1;
         SceneManager.LoadScene(0);
     }
 
-    public void NextLevel()
+    public void IsNewGameMenu(NewGameMenu menu)
+    {
+        newGameMenu = menu;
+    }
+
+    public void NewGame()
+    {
+        if (newGameMenu.GetName().Length != 0)
+        {
+            PlayerPrefs.DeleteAll();
+            PlayerPrefs.SetString("player_name", newGameMenu.GetName());
+            GoToNextScene();
+        }
+    }
+
+    public void ContinueGame()
+    {
+        if (PlayerPrefs.HasKey("scene_index"))
+            SceneManager.LoadScene(PlayerPrefs.GetInt("scene_index"));
+    }
+
+    public void RestartCurrentScene()
+    {
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+    }
+
+    public void GoToNextScene()
     {
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex + 1);
+    }
+
+    public void SaveGameData()
+    {
+        PlayerPrefs.SetFloat("player_health", player.health);
+        PlayerPrefs.SetInt("scene_index", SceneManager.GetActiveScene().buildIndex);
+        PlayerPrefs.Save();
+    }
+
+    public void DeleteGameData()
+    {
+        PlayerPrefs.DeleteAll();
+    }
+
+    public void PauseGame()
+    {
+        Time.timeScale = 0;
+    }
+
+    public void ResumeGame()
+    {
+        Time.timeScale = 1;
     }
 
     public void QuitGame()
     {
         Application.Quit();
-    }
-
-    public float LoadHealth()
-    {
-        if (!PlayerPrefs.HasKey("playerHealth"))
-        {
-            PlayerPrefs.SetFloat("playerHealth", 3f);
-        }
-
-        float currentHealth = PlayerPrefs.GetFloat("playerHealth");
-        UIManager.instance.UpdateHealth(currentHealth);
-
-        return currentHealth;
-    }
-
-    public void SaveData()
-    {
-        PlayerPrefs.SetFloat("playerHealth", player.health);
-        PlayerPrefs.SetInt("sceneIndex", SceneManager.GetActiveScene().buildIndex + 1);
-        PlayerPrefs.Save();
     }
 }

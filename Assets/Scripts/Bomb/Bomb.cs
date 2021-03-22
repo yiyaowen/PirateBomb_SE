@@ -9,14 +9,15 @@ public class Bomb : MonoBehaviour
     private Rigidbody2D rb;
 
     [Header("Properties")]
-    public float startTime;
     public float waitTime;
     public float bombForce;
     public float damageAmount;
 
-    [Header("Check")]
-    public float radius;
-    public LayerMask targetLayer;
+    public float startTime { get; set; }
+
+    [Header("Explosion Area")]
+    public float explosionRaidus;
+    public LayerMask explosionTargetLayer;
 
     void Start()
     {
@@ -39,7 +40,7 @@ public class Bomb : MonoBehaviour
 
     private void OnDrawGizmos()
     {
-        Gizmos.DrawWireSphere(transform.position, radius);
+        Gizmos.DrawWireSphere(transform.position, explosionRaidus);
     }
 
     public void Explosion() // animation event
@@ -47,7 +48,7 @@ public class Bomb : MonoBehaviour
         coll.enabled = false;
         rb.gravityScale = 0;
 
-        Collider2D[] aroundObjects = Physics2D.OverlapCircleAll(transform.position, radius, targetLayer);
+        Collider2D[] aroundObjects = Physics2D.OverlapCircleAll(transform.position, explosionRaidus, explosionTargetLayer);
 
         foreach (var item in aroundObjects)
         {
@@ -57,18 +58,24 @@ public class Bomb : MonoBehaviour
                 Vector3 pos = item.transform.position - transform.position;
                 itemRb.AddForce((pos + Vector3.up) * bombForce, ForceMode2D.Impulse);
             }
+
             if (item.CompareTag("Bomb") && item.GetComponent<Animator>().GetCurrentAnimatorStateInfo(0).IsName("bomb_off"))
             {
                 item.GetComponent<Bomb>().TurnOn();
             }
-            if (item.CompareTag("Player"))
+            else if (item.CompareTag("Player") || item.CompareTag("NPCs"))
             {
                 item.GetComponent<IDamageable>().GetHit(damageAmount);
+            }
+            else if (item.CompareTag("Mask"))
+            {
+                item.gameObject.SetActive(false);
+                item.GetComponent<TerrainMask>().OnTriggerEvent();
             }
         }
     }
 
-    public void DestroyThis()
+    public void DestroySelf()
     {
         Destroy(gameObject); 
     }
@@ -76,7 +83,7 @@ public class Bomb : MonoBehaviour
     public void TurnOff()
     {
         anim.Play("bomb_off");
-        gameObject.layer = LayerMask.NameToLayer("NPC");
+        gameObject.layer = LayerMask.NameToLayer("Environment");
     }
 
     public void TurnOn()

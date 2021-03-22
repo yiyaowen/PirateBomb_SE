@@ -5,6 +5,9 @@ TagManager:
   serializedVersion: 2
   tags:
   - Bomb
+  - Mask
+  - NPCs
+  - Exit Door
   layers:
   - Default
   - TransparentFX
@@ -16,11 +19,11 @@ TagManager:
   - 
   - Ground
   - Environment
-  - NPC
+  - NPCs
   - Bomb
-  - FX
+  - Special Effects
   - Player
-  - Check Area
+  - Check Layer
   - 
   - 
   - 
@@ -42,9 +45,21 @@ TagManager:
   - name: Default
     uniqueID: 0
     locked: 0
-  - name: Background
-    uniqueID: 2294601519
+  - name: Terrain
+    uniqueID: 350221487
     locked: 0
-  - name: NPC
+  - name: Ornamentals
+    uniqueID: 436544559
+    locked: 0
+  - name: Environment Objects
+    uniqueID: 2987375021
+    locked: 0
+  - name: NPCs
     uniqueID: 3597994149
+    locked: 0
+  - name: Player
+    uniqueID: 3924429327
+    locked: 0
+  - name: Mask
+    uniqueID: 3576708159
     locked: 0
