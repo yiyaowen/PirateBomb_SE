@@ -8,6 +8,8 @@ TagManager:
   - Mask
   - NPCs
   - Exit Door
+  - Cannon Ball
+  - Buff
   layers:
   - Default
   - TransparentFX
@@ -24,8 +26,8 @@ TagManager:
   - Special Effects
   - Player
   - Check Layer
-  - 
-  - 
+  - Cannon Ball
+  - Inactive Bomb
   - 
   - 
   - 
@@ -62,4 +64,10 @@ TagManager:
     locked: 0
   - name: Mask
     uniqueID: 3576708159
+    locked: 0
+  - name: Bomb
+    uniqueID: 321192171
+    locked: 0
+  - name: Chain
+    uniqueID: 3540229865
     locked: 0

@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using UnityEngine;
 
 public class PlayerController : MonoBehaviour, IDamageable
 {
@@ -42,33 +43,52 @@ public class PlayerController : MonoBehaviour, IDamageable
     public GameObject jumpFX;
     public GameObject landFX;
 
+    [Header("Sound Effects")]
+    public AudioClip hurtSound;
+
+    public Bottle availableBottle { get; set; }
+
     private Rigidbody2D rb;
+    private Collider2D coll;
     private Animator anim;
-    //private FixedJoystick joystick;
+    private FloatingJoystick joystick;
+    private AudioSource audioSource;
 
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
+        coll = GetComponent<Collider2D>();
         anim = GetComponent<Animator>();
-        //joystick = FindObjectOfType<FixedJoystick>();
+        audioSource = GetComponent<AudioSource>();
 
         GameManager.instance.IsPlayer(this);
         if (state >= State.Battle)
         {
             UIManager.instance.SetPlayerHealthBarActive(true);
-            UpdateHealth();
+            InitHealth();
         }
+
+        // 操纵杆放到更新完触摸按钮后获取
+#if UNITY_ANDROID || UNITY_IOS
+        UIManager.instance.UpdateTouchButtons_MobileDevice(state);
+#endif
+        joystick = FindObjectOfType<FloatingJoystick>();
     }
 
     void Update()
     {
+        audioSource.volume = GameManager.instance.realEffectsVolume;
+
         if (state <= State.Static) return;
 
         anim.SetBool("dead", isDead);
         if (isDead) return;
 
         PhysicsCheck();
+        CheckAvailableBuff();
+#if !UNITY_ANDROID && !UNITY_IOS
         GetUserInput();
+#endif
     }
 
     private void FixedUpdate()
@@ -78,10 +98,13 @@ public class PlayerController : MonoBehaviour, IDamageable
         if (isDead)
         {
             rb.velocity = Vector2.zero;
+            rb.gravityScale = gravityScaleInAir;
             return;
         }
         Move();
+#if !UNITY_ANDROID && !UNITY_IOS
         Jump();
+#endif
     }
 
     private void OnDrawGizmos()
@@ -89,6 +112,7 @@ public class PlayerController : MonoBehaviour, IDamageable
         Gizmos.DrawWireCube(checkPoint.position, checkSize);
     }
 
+    // 此方法用于非移动设备
     void GetUserInput()
 	{
         if (Input.GetButtonDown("Jump") && isGround)
@@ -100,15 +124,23 @@ public class PlayerController : MonoBehaviour, IDamageable
         {
             Attack();
         }
+
+        if (Input.GetKeyDown(KeyCode.K) && availableBottle != null && !availableBottle.isUsed)
+        {
+            availableBottle.DrinkBy(this);
+            availableBottle = null;
+        }
 	}
 
 	void Move()
     {
+#if UNITY_ANDROID || UNITY_IOS
+        // 操纵杆
+        float horizontalInput = joystick.Horizontal;
+#else
         // 键盘操作
         float horizontalInput = Input.GetAxisRaw("Horizontal");
-
-        // 操纵杆
-        //float horizontalInput = joystick.Horizontal;
+#endif
 
         if (horizontalInput != 0)
         {
@@ -130,6 +162,15 @@ public class PlayerController : MonoBehaviour, IDamageable
 		}
 	}
 
+    // 用于移动设备的 UI 按钮的点击事件
+    public void Jump_MobileDevice() // button click event
+    {
+        if (isGround)
+        {
+            JumpDirectly();
+        }
+    }
+
     public void JumpDirectly()
     {
         ShowJumpFX();
@@ -145,6 +186,49 @@ public class PlayerController : MonoBehaviour, IDamageable
             Instantiate(bombPrefab, bombPos, bombPrefab.transform.rotation);
 
             nextAttack = Time.time + attackRate;
+        }
+    }
+
+    // 用于移动设备的 UI 按钮的点击事件
+    public void Attack_MobileDevice() // button click event
+    {
+        if (state >= State.Battle)
+        {
+            Attack();
+        }
+    }
+
+    public void CheckAvailableBuff()
+    {
+        bool hasBottle = false;
+        var targetList = new List<Collider2D>();
+        coll.OverlapCollider(new ContactFilter2D(), targetList);
+
+        foreach (var target in targetList)
+        {
+            if (target.CompareTag("Buff"))
+            {
+                hasBottle = true;
+                var bottle = target.GetComponent<Bottle>();
+                if (bottle != null && !bottle.isUsed)
+                {
+                    availableBottle = bottle;
+                    break;
+                }
+            }
+        }
+        if (!hasBottle) availableBottle = null;
+        UIManager.instance.UpdateBuffButtonIcon();
+    }
+
+    // 用于移动设备的 UI 按钮的点击事件
+    public void UseBuff_MobileDevice() // button click event
+    {
+        if (availableBottle != null && !availableBottle.isUsed)
+        {
+            availableBottle.DrinkBy(this);
+            availableBottle = null;
+            UIManager.instance.UpdateBuffButtonIcon();
         }
     }
 
@@ -166,7 +250,7 @@ public class PlayerController : MonoBehaviour, IDamageable
         landFX.transform.position = transform.position + new Vector3(0, -0.75f, 0);
     }
 
-    public void UpdateHealth()
+    public void InitHealth()
     {
         health = GameManager.instance.LoadPlayerHealth();
         UIManager.instance.SetPlayerMaxHealth(maxHealth);
@@ -177,6 +261,9 @@ public class PlayerController : MonoBehaviour, IDamageable
     {
         if (!anim.GetCurrentAnimatorStateInfo(1).IsName("player_hit"))
         {
+            audioSource.clip = hurtSound;
+            audioSource.Play();
+
             health -= damage;
 
             if (health < 1)
@@ -191,18 +278,35 @@ public class PlayerController : MonoBehaviour, IDamageable
         }
     }
 
+    public void GetHeal(float value)
+    {
+        health += value;
+
+        if (health > maxHealth)
+        {
+            health = maxHealth;
+        }
+
+        UIManager.instance.UpdatePlayerHealth(health);
+    }
+
     public void ChangeToStaticState()
     {
         state = State.Static;
+        UIManager.instance.UpdateTouchButtons_MobileDevice(state);
     }
 
     public void ChangeToRoamingState()
     {
         state = State.Roaming;
+        UIManager.instance.UpdateTouchButtons_MobileDevice(state);
+        joystick = FindObjectOfType<FloatingJoystick>();
     }
 
     public void ChangeToBattleState()
     {
         state = State.Battle;
+        UIManager.instance.UpdateTouchButtons_MobileDevice(state);
+        joystick = FindObjectOfType<FloatingJoystick>();
     }
 }

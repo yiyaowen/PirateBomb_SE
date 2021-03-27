@@ -55,11 +55,13 @@ public class Enemy : MonoBehaviour, IDamageable
         ChangeState(initStateType);
         if (isBoss)
         {
+            GameManager.instance.IsBoss(this);
             UIManager.instance.SetBossHealthBarActive(true);
             UIManager.instance.SetBossMaxHealth(health);
         }
     }
 
+    bool isFirstDead = true;
     protected virtual void Update()
     {
         if (isBoss)
@@ -69,6 +71,8 @@ public class Enemy : MonoBehaviour, IDamageable
         animator.SetBool("dead", isDead);
         if (isDead)
         {
+            GameManager.instance.BossDead(this, isFirstDead);
+            isFirstDead = false;
             GameManager.instance.ObjectFinish(gameObject);
             gameObject.layer = LayerMask.NameToLayer("Default");
             return;
